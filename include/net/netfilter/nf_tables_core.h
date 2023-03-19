@@ -111,4 +111,15 @@ void nft_dynset_eval(const struct nft_expr *expr,
 		     struct nft_regs *regs, const struct nft_pktinfo *pkt);
 void nft_rt_get_eval(const struct nft_expr *expr,
 		     struct nft_regs *regs, const struct nft_pktinfo *pkt);
+
+#ifdef CONFIG_SAL_GENERAL
+//taken from cmp.c
+struct nft_cmp_expr {
+	struct nft_data		data;
+	enum nft_registers	sreg:8;
+	u8			len;
+	enum nft_cmp_ops	op:8;
+};
+void nft_cmp_fast_eval(const struct nft_expr *expr,struct nft_regs *regs);
+#endif
 #endif /* _NET_NF_TABLES_CORE_H */
