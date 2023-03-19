@@ -16,12 +16,14 @@
 #include <net/netfilter/nf_tables_offload.h>
 #include <net/netfilter/nf_tables.h>
 
+#ifndef CONFIG_SAL_GENERAL
 struct nft_cmp_expr {
 	struct nft_data		data;
 	enum nft_registers	sreg:8;
 	u8			len;
 	enum nft_cmp_ops	op:8;
 };
+#endif
 
 void nft_cmp_eval(const struct nft_expr *expr,
 		  struct nft_regs *regs,

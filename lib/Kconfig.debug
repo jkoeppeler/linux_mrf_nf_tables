@@ -523,6 +523,21 @@ source "lib/Kconfig.kcsan"
 
 endmenu
 
+menu "Self Adjusting List Configuration"
+config SAL_GENERAL
+	bool "Enable General Self Adjusting List Feature"
+	help
+	   Here is the explanation
+
+config SAL_MEMLESS_HELPER_STRUCT
+	bool "Storing nft_ra_info helper struct in nft_chain "
+	depends on SAL_GENERAL
+
+config SAL_DEBUG
+	bool "Adding statistics such as traversed nodes counter and debugging back end"
+
+endmenu
+
 config DEBUG_KERNEL
 	bool "Kernel debugging"
 	help
