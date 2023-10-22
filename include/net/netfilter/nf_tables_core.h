@@ -121,5 +121,9 @@ struct nft_cmp_expr {
 	enum nft_cmp_ops	op:8;
 };
 void nft_cmp_fast_eval(const struct nft_expr *expr,struct nft_regs *regs);
+struct per_cpu_rules_t {
+	struct nft_rule *__rcu* r[NF_MAX_HOOKS];
+};
+DECLARE_PER_CPU(struct per_cpu_rules_t, per_cpu_rules);
 #endif
 #endif /* _NET_NF_TABLES_CORE_H */

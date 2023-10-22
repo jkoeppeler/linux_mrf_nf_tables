@@ -23,6 +23,8 @@
 
 #ifdef CONFIG_SAL_GENERAL
 #include <linux/list_mrf_extension.h>
+DEFINE_PER_CPU(struct per_cpu_rules_t, per_cpu_rules);
+EXPORT_PER_CPU_SYMBOL(per_cpu_rules);
 #endif
 
 static noinline void __nft_trace_packet(struct nft_traceinfo *info,
@@ -209,7 +211,7 @@ nft_do_chain(struct nft_pktinfo *pkt, void *priv)
     u32 idx = 0;
 #ifdef CONFIG_SAL_GENERAL
     int cpu = smp_processor_id();
-    struct softnet_data *sd;
+    struct per_cpu_rules_t *r;
     struct nft_rule **rules_backup;
 #endif
 #ifdef CONFIG_SAL_DEBUG
@@ -227,13 +229,13 @@ do_chain:
 #ifdef CONFIG_SAL_GENERAL
     //printk("Hooknum: %u\n", pkt->xt.state->hook); //0: prerouting 1: Input 2: forward 3: output 4: postrouting
     if(pkt->xt.state->hook < 0 || pkt->xt.state->hook > 4){
-        printk("Invalid hook\n");
+        pr_err("Invalid hook\n");
         return 0;
     }
-    sd = &per_cpu(softnet_data, cpu);
+    r = &per_cpu(per_cpu_rules, cpu);
     //printk("sd: %p\n", sd); //0: prerouting 1: Input 2: forward 3: output 4: postrouting
 
-    rules = rcu_dereference(sd->rules[pkt->xt.state->hook]);
+    rules = rcu_dereference(r->r[pkt->xt.state->hook]);
     rules_backup = rules;
     //printk("rules: %p\n", sd->rules[pkt->xt.state->hook]); //0: prerouting 1: Input 2: forward 3: output 4: postrouting
     if(rules == NULL)
@@ -393,6 +395,19 @@ int __init nf_tables_core_module_init(void)
 		if (err)
 			goto err;
 	}
+
+#ifdef CONFIG_SAL_GENERAL
+	i = 0;
+	j = 0;
+	for_each_possible_cpu(i) {
+		struct per_cpu_rules_t *r = &per_cpu(per_cpu_rules, i);
+		for(j=0; j < NF_MAX_HOOKS; ++j)
+			r->r[j] = NULL;
+	}
+	pr_info("MRF nftables is loaded\n");
+#else
+	pr_info("Default nftables is loaded\n");
+#endif
 
 	return 0;
 

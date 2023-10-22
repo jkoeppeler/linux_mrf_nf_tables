@@ -2030,12 +2030,12 @@ static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
 		}
 
 #ifdef CONFIG_SAL_GENERAL
-        struct softnet_data *sd = &per_cpu(softnet_data, smp_processor_id());
-        if(!sd){
+        struct per_cpu_rules_t *r = &per_cpu(per_cpu_rules, smp_processor_id());
+        if(!r){
             printk("SOMETHING WENT SERIOUSLY WRONG!\n");
             return -EINVAL;
         }
-        if(sd->rules[hook.num] != NULL){
+        if(r->r[hook.num] != NULL){
             printk(KERN_ALERT "Cannot add another chain in this hook!\n");
             return -EINVAL;
         }
@@ -7866,7 +7866,7 @@ static int nf_tables_commit_chain_prepare(struct net *net, struct nft_chain *cha
 #ifdef CONFIG_SAL_GENERAL
     i=0;
     for_each_possible_cpu(i) {
-        struct softnet_data *sd = &per_cpu(softnet_data, i);
+        struct per_cpu_rules_t *r = &per_cpu(per_cpu_rules, i);
         new_rules = kzalloc((alloc+1)*sizeof(struct nft_rule *), GFP_KERNEL);
         if(!new_rules){
             return -ENOMEM;
@@ -7877,13 +7877,13 @@ static int nf_tables_commit_chain_prepare(struct net *net, struct nft_chain *cha
             new_rules[j++] = rule;
         }
         new_rules[j] = NULL;
-        if(sd->rules[chain->hook_num]){
-            old_rules = sd->rules[chain->hook_num];
-            rcu_assign_pointer(sd->rules[chain->hook_num], new_rules);
+        if(r->r[chain->hook_num]){
+            old_rules = r->r[chain->hook_num];
+            rcu_assign_pointer(r->r[chain->hook_num], new_rules);
             synchronize_rcu();
             kfree(old_rules);
         }else{
-            rcu_assign_pointer(sd->rules[chain->hook_num], new_rules);
+            rcu_assign_pointer(r->r[chain->hook_num], new_rules);
         }
     }
 #endif
@@ -7990,10 +7990,10 @@ void nft_chain_del(struct nft_chain *chain)
 
     i=0;
     for_each_possible_cpu(i) {
-        struct softnet_data *sd = &per_cpu(softnet_data, i);
-        if(sd->rules[chain->hook_num]) {
-            old_rules=rcu_dereference(sd->rules[chain->hook_num]);
-            rcu_assign_pointer(sd->rules[chain->hook_num], NULL);
+        struct per_cpu_rules_t *r = &per_cpu(per_cpu_rules, i);
+        if(r->r[chain->hook_num]) {
+            old_rules=rcu_dereference(r->r[chain->hook_num]);
+            rcu_assign_pointer(r->r[chain->hook_num], NULL);
             synchronize_rcu();
             kfree(old_rules);
         }
