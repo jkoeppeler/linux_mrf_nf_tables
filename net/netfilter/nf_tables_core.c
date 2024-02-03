@@ -25,6 +25,21 @@
 #include <linux/list_mrf_extension.h>
 DEFINE_PER_CPU(struct per_cpu_rules_t, per_cpu_rules);
 EXPORT_PER_CPU_SYMBOL(per_cpu_rules);
+
+static struct kobject *mrf_nft_kobj;
+static unsigned int mrf_enable;
+
+static ssize_t mrf_enable_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "enabled: %d\n", mrf_enable);
+}
+
+static ssize_t mrf_enable_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	sscanf(buf, "%du", &mrf_enable);
+	return count;
+}
+static struct kobj_attribute mrf_enable_attr = __ATTR(mrf_enable, 0660, mrf_enable_show, mrf_enable_store);
 #endif
 
 static noinline void __nft_trace_packet(struct nft_traceinfo *info,
@@ -174,6 +189,9 @@ static void expr_call_ops_eval(const struct nft_expr *expr,
 static unsigned int nft_access_rule(struct nft_rule **rules, struct nft_rule *matched_rule, u32 idx){
     int swap_count = 0;
     struct nft_rule *tmp;
+	if (!mrf_enable)
+		return 0;
+
     //is first
     if(idx == 0)
         return 0;
@@ -404,6 +422,15 @@ int __init nf_tables_core_module_init(void)
 		for(j=0; j < NF_MAX_HOOKS; ++j)
 			r->r[j] = NULL;
 	}
+	mrf_nft_kobj = kobject_create_and_add("mrf_nft_config", kernel_kobj);
+	if (!mrf_nft_kobj)
+		return -ENOMEM;
+
+	err = sysfs_create_file(mrf_nft_kobj, &mrf_enable_attr.attr);
+	if (err) {
+		pr_err("Could not create sysfs entry for nf_tables\n");
+		goto err;
+	}
 	pr_info("MRF nftables is loaded\n");
 #else
 	pr_info("Default nftables is loaded\n");
@@ -432,4 +459,6 @@ void nf_tables_core_module_exit(void)
 	i = ARRAY_SIZE(nft_basic_objects);
 	while (i-- > 0)
 		nft_unregister_obj(nft_basic_objects[i]);
+
+	kobject_put(mrf_nft_kobj);
 }
