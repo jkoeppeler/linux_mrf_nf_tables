@@ -979,9 +979,6 @@ struct nft_chain {
     atomic_t    swaps;
     atomic64_t    expr;
 #endif
-#ifdef CONFIG_SAL_LOCKING_ENABLE
-	spinlock_t rules_lock;
-#endif
 #ifdef CONFIG_SAL_GENERAL
     u32 hook_num;
 #endif
