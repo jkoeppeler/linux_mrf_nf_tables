@@ -29,7 +29,6 @@
 #include <linux/list_sort.h>
 static struct kobject *mrf_nft_kobj;
 static unsigned int mrf_cpu;
-static unsigned int mrf_hook;
 
 static ssize_t mrf_cpu_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
@@ -44,20 +43,7 @@ static ssize_t mrf_cpu_store(struct kobject *kobj, struct kobj_attribute *attr, 
 	return count;
 }
 
-static ssize_t mrf_hook_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", mrf_hook);
-}
-
-static ssize_t mrf_hook_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
-{
-	sscanf(buf, "%du", &mrf_hook);
-	if (mrf_hook >= NF_MAX_HOOKS)
-		mrf_hook = 0;
-	return count;
-}
 static struct kobj_attribute mrf_cpu_attr = __ATTR(mrf_cpu, 0660, mrf_cpu_show, mrf_cpu_store);
-static struct kobj_attribute mrf_hook_attr = __ATTR(mrf_hook, 0660, mrf_hook_show, mrf_hook_store);
 #endif
 
 #define NFT_MODULE_AUTOLOAD_LIMIT (MODULE_NAME_LEN - sizeof("nft-expr-255-"))
@@ -2950,26 +2936,31 @@ static int __nf_tables_dump_rules(struct sk_buff *skb,
 				  const struct nft_chain *chain)
 {
 	struct net *net = sock_net(skb->sk);
-	struct nft_rule *const *rules;
-	struct per_cpu_rules_t *r;
 	const struct nft_rule *rule, *prule;
 	unsigned int s_idx = cb->args[0];
+#ifdef CONFIG_SAL_GENERAL
+	struct nft_rule *const *rules;
+	struct per_cpu_rules_t *r;
 	r = &per_cpu(per_cpu_rules, mrf_cpu);
 	if (!r) {
 		pr_err("No ruleset for mrf_cpu %d\n", mrf_cpu);
 		return 1;
 	}
 
-	rules = rcu_dereference(r->r[mrf_hook]);
+	rules = rcu_dereference(r->r[chain->hook_num]);
 	if (!rules) {
-		pr_err("No rules in hook %d\n", mrf_hook);
+		pr_err("No rules in hook %d\n", chain->hook_num);
 		return 1;
 	}
+#endif
 	prule = NULL;
-	// list_for_each_entry_rcu(rule, &chain->rules, list) {
+#ifdef CONFIG_SAL_GENERAL
 	rule = *rules;
 	for (;*rules; rules++) {
 		rule = *rules;
+#else
+	list_for_each_entry_rcu(rule, &chain->rules, list) {
+#endif
 		if (!nft_is_active(net, rule))
 			goto cont_skip;
 		if (*idx < s_idx)
@@ -9237,11 +9228,6 @@ static int __init nf_tables_module_init(void)
 	if (!mrf_nft_kobj)
 		return -ENOMEM;
 	err = sysfs_create_file(mrf_nft_kobj, &mrf_cpu_attr.attr);
-	if (err) {
-		pr_err("Could not create sysfs entry for nf_tables\n");
-		goto err5;
-	}
-	err = sysfs_create_file(mrf_nft_kobj, &mrf_hook_attr.attr);
 	if (err) {
 		pr_err("Could not create sysfs entry for nf_tables\n");
 		goto err5;
