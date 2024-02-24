@@ -461,6 +461,7 @@ void nf_tables_core_module_exit(void)
 	i = ARRAY_SIZE(nft_basic_objects);
 	while (i-- > 0)
 		nft_unregister_obj(nft_basic_objects[i]);
-
+#ifdef CONFIG_SAL_GENERAL
 	kobject_put(mrf_nft_kobj);
+#endif
 }

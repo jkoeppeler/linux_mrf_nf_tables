@@ -9223,7 +9223,7 @@ static int __init nf_tables_module_init(void)
 	if (err < 0)
 		goto err5;
 
-	
+#ifdef CONFIG_SAL_GENERAL	
 	mrf_nft_kobj = kobject_create_and_add("mrf_nft_api", kernel_kobj);
 	if (!mrf_nft_kobj)
 		return -ENOMEM;
@@ -9232,6 +9232,7 @@ static int __init nf_tables_module_init(void)
 		pr_err("Could not create sysfs entry for nf_tables\n");
 		goto err5;
 	}
+#endif
 
 	/* must be last */
 	err = nfnetlink_subsys_register(&nf_tables_subsys);
@@ -9268,7 +9269,9 @@ static void __exit nf_tables_module_exit(void)
 	rcu_barrier();
 	rhltable_destroy(&nft_objname_ht);
 	nf_tables_core_module_exit();
+#ifdef CONFIG_SAL_GENERAL
 	kobject_put(mrf_nft_kobj);
+#endif
 }
 
 module_init(nf_tables_module_init);
