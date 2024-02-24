@@ -272,10 +272,12 @@ next_rule:
 #ifdef CONFIG_SAL_DEBUG
 		atomic64_inc(&chain->traversed_rules);
         trav_nodes++;
-        num_expr++;
 #endif
 		rule = *rules;
 		nft_rule_for_each_expr(expr, last, rule) {
+#ifdef CONFIG_SAL_DEBUG
+            num_expr++;
+#endif
 			if (expr->ops == &nft_cmp_fast_ops)
 				nft_cmp_fast_eval(expr, &regs);
 			else if (expr->ops == &nft_bitwise_fast_ops)
