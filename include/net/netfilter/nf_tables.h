@@ -973,12 +973,6 @@ struct nft_chain {
 	/* Only used during control plane commit phase: */
 	struct nft_rule			**rules_next;
 
-#ifdef CONFIG_SAL_DEBUG
-	atomic64_t 	traversed_rules;
-    atomic64_t    proc_pkts;
-    atomic_t    swaps;
-    atomic64_t    expr;
-#endif
 #ifdef CONFIG_SAL_LOCKING_ENABLE
 	spinlock_t rules_lock;
 #endif
@@ -1301,14 +1295,6 @@ struct nft_traceinfo {
 	enum nft_trace_types		type;
 	bool				packet_dumped;
 	bool				trace;
-#ifdef CONFIG_SAL_DEBUG
-    //enabled - this is used for the bpf observer to indicate that this struct contains data that needs to be observed
-    bool enabled;
-    unsigned int swaps;
-    unsigned int trav_nodes;
-    unsigned int rule_handle;
-    unsigned int cpu;
-#endif
 };
 
 void nft_trace_init(struct nft_traceinfo *info, const struct nft_pktinfo *pkt,

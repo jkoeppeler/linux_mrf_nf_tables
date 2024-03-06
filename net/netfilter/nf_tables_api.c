@@ -2096,10 +2096,15 @@ static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
 	chain->table = table;
 
 #ifdef CONFIG_SAL_DEBUG
-	atomic64_set(&chain->traversed_rules, 0);
-	atomic64_set(&chain->expr, 0);
-	atomic64_set(&chain->proc_pkts, 0);
-	atomic_set(&chain->swaps, 0);
+	int cpu;
+	struct per_cpu_perf_counter_t *perf_count;
+	for_each_possible_cpu(cpu) {
+		perf_count = &per_cpu(per_cpu_perf_counter, cpu);
+		perf_count->traversed_rules = 0;
+		perf_count->expr = 0;
+		perf_count->proc_pkts = 0;
+		perf_count->swaps = 0;
+	} 
 #endif
 #ifdef CONFIG_SAL_GENERAL
     chain->hook_num = hook.num;
@@ -7406,6 +7411,8 @@ static int nf_tables_fill_travnode_info(struct sk_buff *skb, struct nft_chain *c
     u32 avg_expr=0;
     u32 swaps=0;
     u32 avg_swaps=0;
+	struct per_cpu_perf_counter_t *perf_count;
+	int cpu;
 	int event = nfnl_msg_type(NFNL_SUBSYS_NFTABLES, NFT_MSG_GETTRAVNODES);
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(struct nfgenmsg), 0);
 	if(nlh == NULL)
@@ -7415,21 +7422,20 @@ static int nf_tables_fill_travnode_info(struct sk_buff *skb, struct nft_chain *c
 	nfmsg->nfgen_family = AF_UNSPEC;
 	nfmsg->version = 0;
 	nfmsg->res_id = 0;
-    trav_nodes=atomic64_read(&chain->traversed_rules);
-    pkts=atomic64_read(&chain->proc_pkts);
-    expr=atomic64_read(&chain->expr);
-    swaps=atomic_read(&chain->swaps);
+	for_each_possible_cpu(cpu) {
+		perf_count = &per_cpu(per_cpu_perf_counter, cpu);
+		trav_nodes += perf_count->traversed_rules;
+		pkts += perf_count->proc_pkts;
+		expr += perf_count->expr;
+		swaps += perf_count->swaps;
+	}
     printk("travnodes = %llu pkts = %llu expr=%llu", trav_nodes, pkts, expr);
     if(pkts==0){
         avg_trav_nodes = 0;
         avg_swaps=0;
         avg_expr=0;
     }else{
-#ifdef CONFIG_SAL_GENERAL
     avg_trav_nodes=(trav_nodes)/pkts;
-#else
-    avg_trav_nodes=(trav_nodes)/pkts;
-#endif
     avg_swaps=swaps/pkts;
     avg_expr=(expr)/pkts;
     printk("Sending %u %u\n", avg_trav_nodes, avg_expr);
@@ -7507,11 +7513,16 @@ static int nf_tables_rule_sort(void *priv, const struct list_head *a, const stru
 static void nf_tables_commit_chain_free_rules_old(struct nft_rule **rules);
 
 static int nf_tables_reset_chain_rules(struct nft_chain *chain, struct net *net) {
-#ifdef CONFIG_SAL_GENERAL
-    atomic64_set(&chain->traversed_rules, 0);
-    atomic_set(&chain->swaps, 0);
-    atomic64_set(&chain->proc_pkts, 0);
-#endif // CONFIG_SAL_GENERAL
+#ifdef CONFIG_SAL_DEBUG
+	struct per_cpu_perf_counter_t *perf_count;
+	int cpu;
+	for_each_possible_cpu(cpu) {
+		perf_count = &per_cpu(per_cpu_perf_counter, cpu);
+		perf_count->traversed_rules = 0;
+		perf_count->swaps = 0;
+		perf_count->proc_pkts = 0;
+	}
+#endif // CONFIG_SAL_DEBUG
     return 0;
 }
 

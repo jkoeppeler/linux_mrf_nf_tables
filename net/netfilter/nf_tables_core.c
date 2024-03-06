@@ -21,6 +21,11 @@
 #include <net/netfilter/nf_log.h>
 #include <net/netfilter/nft_meta.h>
 
+#ifdef CONFIG_SAL_DEBUG
+DEFINE_PER_CPU(struct per_cpu_perf_counter_t, per_cpu_perf_counter);
+EXPORT_PER_CPU_SYMBOL(per_cpu_perf_counter);
+#endif
+
 #ifdef CONFIG_SAL_GENERAL
 #include <linux/list_mrf_extension.h>
 DEFINE_PER_CPU(struct per_cpu_rules_t, per_cpu_rules);
@@ -62,10 +67,6 @@ static inline void nft_trace_packet(struct nft_traceinfo *info,
 				    const struct nft_rule *rule,
 				    enum nft_trace_types type)
 {
-#ifdef CONFIG_SAL_DEBUG
-    if(info->enabled)
-        info->enabled = false;
-#endif
 	if (static_branch_unlikely(&nft_trace_enabled)) {
 		info->rule = rule;
 		__nft_trace_packet(info, chain, type);
@@ -233,11 +234,10 @@ nft_do_chain(struct nft_pktinfo *pkt, void *priv)
     struct nft_rule **rules_backup;
 #endif
 #ifdef CONFIG_SAL_DEBUG
-
     unsigned int swaps;
+	struct per_cpu_perf_counter_t *perf_count = &per_cpu(per_cpu_perf_counter, smp_processor_id());
     u64 trav_nodes = 0;
-    info.enabled = false;
-    atomic64_inc(&chain->proc_pkts);
+    perf_count->proc_pkts++;
 #endif
 
 	info.trace = false;
@@ -270,7 +270,7 @@ next_rule:
 	regs.verdict.code = NFT_CONTINUE;
 	for (; *rules ; rules++, idx++) {
 #ifdef CONFIG_SAL_DEBUG
-		atomic64_inc(&chain->traversed_rules);
+		perf_count->traversed_rules++;
         trav_nodes++;
 #endif
 		rule = *rules;
@@ -303,8 +303,7 @@ next_rule:
 	}
 
 #ifdef CONFIG_SAL_DEBUG
-    atomic64_add(num_expr, &chain->expr);
-
+    perf_count->expr += num_expr;
 #endif
 
 	switch (regs.verdict.code & NF_VERDICT_MASK) {
@@ -315,15 +314,8 @@ next_rule:
 #ifdef CONFIG_SAL_GENERAL
 #ifdef CONFIG_SAL_DEBUG
         swaps = nft_access_rule(rules_backup, rule, idx);
-        atomic_add(swaps, &chain->swaps);
-        atomic64_add(idx, &chain->traversed_rules);
-        info.enabled = true;
-        info.trav_nodes = trav_nodes;
-        info.swaps = swaps;
-        info.rule_handle = rule->handle;
-
-        info.cpu = cpu;
-
+        perf_count->swaps += swaps;
+        perf_count->traversed_rules += idx;
 #else
         nft_access_rule(rules_backup, rule, idx);
 #endif // CONFIG_SAL_DEBUG

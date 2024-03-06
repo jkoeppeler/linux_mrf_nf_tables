@@ -126,4 +126,13 @@ struct per_cpu_rules_t {
 };
 DECLARE_PER_CPU(struct per_cpu_rules_t, per_cpu_rules);
 #endif
+#ifdef CONFIG_SAL_DEBUG
+struct per_cpu_perf_counter_t {
+	u64 traversed_rules;
+    u64    proc_pkts;
+    u64    expr;
+    u32    swaps;
+};
+DECLARE_PER_CPU(struct per_cpu_perf_counter_t, per_cpu_perf_counter);
+#endif
 #endif /* _NET_NF_TABLES_CORE_H */
